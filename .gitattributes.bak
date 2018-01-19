@@ -1,2 +1,779 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+--------------------------------实验一  -------------------------
+user u_zpx_1412;
+password zpx;
+--------------------------------班级表-----------------------
+create table t_class_1412(
+CNO varchar2(10) Primary key,
+CNAME varchar2(5),
+cin varchar2(10), 
+monitorNo varchar2(10) constraint c_fk2 references t_stud_1412(sno)，
+HeadNo varchar2(10) constraint c_fk1 references t_stud_1412(sno),
+constraint c_cin_1412 check (cin in('北校区'，'南校区'，'新校区'，'铁道校区'，'湘雅校区'))
+）;
+
+drop table t_class_1412;
+
+
+---------------------------------学生表-------------------------
+
+
+create table t_stud_1412(
+SNO varchar2(10) primary key, 
+SNAME varchar2(10), 
+SEX varchar2(2),
+TEL varchar2(11),
+E_MAIL varchar2(50) ,
+CNO varchar2(2), 
+birthday date,  
+constraint c_stud1_1412 check (SEX in('男','女','其他')),
+constraint c_stud2_1412 check (birthday > to_date('1997-08-31','yyyy-mm-dd)),
+constraint c_stud3_1412 check (E_MAIL like '%@%'),
+constraint c_stud4_1412 foreign key (CNO) references t_class_1412(CNO)
+);
+alter table t_stud_1412 modify constraint c_stud4_1412 disable;
+alter table t_stud_1412 modify constraint c_stud4_1412 enable;
+
+
+-------------------------------循环插入学生表-------------------
+declare
+i number(2):=1;
+j number(1):=2;
+begin
+  for j in 2..6 loop
+    for i in 1..20 loop
+	  if i mod 2=0 then	
+	    if i<10 then
+              insert into t_stud_1412 values('0902150'||to_char(j)||'0'||to_char(i),'张'||to_char(j)||to_char(i),'男','1560749'||to_char(j)||'50'||to_char(i),'7050'||to_char(j)||'10'||to_char(i)||'@qq.com',to_char(j),to_date('1998-'||to_char(j)||'-'||to_char(i),'yyyy-mm-dd'));
+	    else
+	      insert into t_stud_1412 values('0902150'||to_char(j)||to_char(i),'张'||to_char(j)||to_char(i),'男','1560749'||to_char(j)||'5'||to_char(i),'7050'||to_char(j)||'1'||to_char(i)||'@qq.com',to_char(j),to_date('1998-'||to_char(j)||'-'||to_char(i),'yyyy-mm-dd'));       
+            end if;
+	  else
+	    if i<10 then
+              insert into t_stud_1412 values('0902150'||to_char(j)||'0'||to_char(i),'李'||to_char(j)||to_char(i),'女','1560749'||to_char(j)||'50'||to_char(i),'7050'||to_char(j)||'10'||to_char(i)||'@qq.com',to_char(j),to_date('1998-'||to_char(j)||'-'||to_char(i),'yyyy-mm-dd'));
+	    else
+ 	      insert into t_stud_1412 values('0902150'||to_char(j)||to_char(i),'李'||to_char(j)||to_char(i),'女','1560749'||to_char(j)||'5'||to_char(i),'7050'||to_char(j)||'1'||to_char(i)||'@qq.com',to_char(j),to_date('1998-'||to_char(j)||'-'||to_char(i),'yyyy-mm-dd'));
+	    end if;
+	  end if;
+    end loop;
+  end loop;
+end;
+
+
+
+-------------循环插入班级表（1+班级号为班长，4班8号为年级长）-------------
+create table t_location_1412(
+	cin varchar(10),
+	no  number(2)
+)
+'北校区'，'南校区'，'新校区'，'铁道校区'，'湘雅校区'
+insert into t_location_1412 values('北校区',2);
+insert into t_location_1412 values('南校区',3);
+insert into t_location_1412 values('新校区',4);
+insert into t_location_1412 values('铁道校区',5);
+insert into t_location_1412 values('湘雅校区',6);
+
+
+declare
+i number(1):=2;
+location varchar(10);
+begin
+  for i in 2..6 loop
+	select cin into location from t_location_1412 where no = i;
+	insert into t_class_1412 values(to_char(i),to_char(i)||'班',to_char(location),'0902150'||to_char(i)||'1'||to_char(i),'0902150408');
+  end loop;
+end;
+
+
+--------------实现权限控制---------------------------------------------
+alter table t_stud_1412 add (grade number default 1);
+
+select 'create user u_'||sno||' identified by p_'||sno||';' from t_stud_1412;
+
+
+select 'grant resource,connect to U_'||sno||';' from u_zpx_1412.t_stud_1412;
+
+
+create view v_pub_1412
+as select  distinct t_stud_1412.sno,sname,sex,tel,e_mail,t_stud_1412.cno,birthday
+from t_stud_1412, t_class_1412
+where   sno=substr(user,3)
+or ( monitorNo = (substr(user,3) )
+    and (t_stud_1412.cno = t_class_1412.cno  )  
+  )
+or（ headno = (substr(user,3）)
+    and (grade = 1)
+  )
+;
+
+grant select on v_pub_1412 to public;
+
+
+
+--------------------------------------实验二-----------------------------------
+alter table t_stud_1412 add (sum_evaluation number default 100);
+alter table t_class_1412 add (sum_evaluation number default 100);
+
+
+create table Attend_1412
+(
+riqi date,
+unit char,
+sno varchar2(10) references t_stud_1412(sno),
+cno varchar2(10) references t_class_1412(cno),
+condition varchar2(10),
+primary key(riqi,unit,sno)
+);
+alter table attend_1412 add constraint ck_attend_con check
+(condition in ('正常','迟到','请假','旷课'));
+alter table attend_1412 add constraint ck_attend_unit check
+(unit in ('12','34','56','78','90'));
+
+
+create table stud_attend 
+(
+sno varchar2(10) primary key,
+beginDate date,
+endDate date,
+normal number,
+late number,
+absent number,
+vacant number,
+mark number
+);
+
+
+create table class_attend
+(
+cno varchar2(10) primary key,
+beginDate date,
+endDate date,
+normal number,
+late number,
+absent number,
+vacant number,
+mark number
+);
+
+
+
+
+create or replace trigger t_stud_1412 
+before insert or update or delete on attend_1412
+for each row
+begin
+	if inserting then
+	if:new.condition='迟到'then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation-2 where :new.sno = t_stud_1412.sno;
+	elsif :new.condition = '旷课' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation-5 where :new.sno = t_stud_1412.sno;
+	elsif :new.condition = '请假' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation-1 where :new.sno = t_stud_1412.sno;
+	end if;
+	end if;
+	
+	if deleting then
+	if :old.condition = '迟到' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation+2 where :old.sno = t_stud_1412.sno;
+	elsif :old.condition = '旷课' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation+5 where :old.sno = t_stud_1412.sno;
+	elsif :old.condition = '请假' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation+1 where :old.sno = t_stud_1412.sno;
+	end if;
+	end if;
+
+	if updating then
+	if :old.condition = '迟到' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation+2 where :old.sno = t_stud_1412.sno;
+	elsif :old.condition = '旷课' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation+5 where :old.sno = t_stud_1412.sno;
+	elsif :old.condition = '请假' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation+1 where :old.sno = t_stud_1412.sno;
+
+	end if;
+	
+	if :new.condition = '迟到' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation-2 where :new.sno = t_stud_1412.sno;
+	elsif :new.condition = '旷课' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation-5 where :new.sno = t_stud_1412.sno;
+	elsif :new.condition = '请假' then
+	   update t_stud_1412 set sum_evaluation=sum_evaluation-1 where :new.sno = t_stud_1412.sno;
+
+	end if;
+	end if;
+end; 
+
+
+
+declare
+i number(2):=1;
+j number(1):=2;
+begin
+  for j in 2..6 loop
+    for i in 1..20 loop
+	  if i mod 5=0 then	
+	    if i<10 then
+              insert into attend_1412 values(sysdate-365,'12','0902150'||to_char(j)||'0'||to_char(i),to_char(j),'迟到');
+	    else
+	      insert into attend_1412 values(sysdate-365,'12','0902150'||to_char(j)||to_char(i),to_char(j),'旷课');       
+            end if;
+	  end if;
+	  if i mod 5=1 then
+	    if i<10 then
+              insert into attend_1412 values(sysdate-365,'34','0902150'||to_char(j)||'0'||to_char(i),to_char(j),'正常');
+	    else
+ 	      insert into attend_1412 values(sysdate-365,'34','0902150'||to_char(j)||to_char(i),to_char(j),'迟到');
+	    end if;
+	  end if;
+	  if i mod 5=2 then
+	    if i<10 then
+              insert into attend_1412 values(sysdate-365,'56','0902150'||to_char(j)||'0'||to_char(i),to_char(j),'正常');
+	    else
+ 	      insert into attend_1412 values(sysdate-365,'56','0902150'||to_char(j)||to_char(i),to_char(j),'请假');
+	    end if;
+	  end if;
+	  if i mod 5=3 then
+	    if i<10 then
+              insert into attend_1412 values(sysdate-365,'78','0902150'||to_char(j)||'0'||to_char(i),to_char(j),'旷课');
+	    else
+ 	      insert into attend_1412 values(sysdate-365,'78','0902150'||to_char(j)||to_char(i),to_char(j),'请假');
+	    end if;
+	  end if;
+	  if i mod 5=4 then
+	    if i<10 then
+              insert into attend_1412 values(sysdate-365,'90','0902150'||to_char(j)||'0'||to_char(i),to_char(j),'正常');
+	    else
+ 	      insert into attend_1412 values(sysdate-365,'90','0902150'||to_char(j)||to_char(i),to_char(j),'请假');
+	    end if;
+	  end if;
+    end loop;
+  end loop;
+end;
+
+
+
+
+create or replace procedure class_kaoqin
+(beginDate in date,endDate in date,class in varchar2 )
+is 
+ 
+normal number;
+late number;
+absent number;
+vacant number;
+mark number default 100;
+begin 
+/*插入正常次数*/
+select count(*) into normal
+from attend_1412
+where       beginDate < riqi
+and endDate > riqi
+and class = cno
+and condition = '正常';
+/*插入迟到次数*/
+select count(*) into late
+from attend_1412
+where       beginDate < riqi
+and endDate > riqi
+and class = cno
+and condition = '迟到';
+
+
+/*插入请假次数*/
+select count(*) into vacant
+from attend_1412
+where       beginDate < riqi
+and endDate > riqi
+and class = cno
+and condition = '请假';
+/*插入旷课次数*/
+select count(*) into absent
+from attend_1412
+where       beginDate < riqi
+and endDate > riqi
+and class = cno
+and condition = '旷课';
+
+
+/*更新扣分*/
+mark := late*2 + vacant +absent*5;
+
+insert into class_attend (cno,beginDate,endDate,normal,late,vacant,absent,mark) 
+values (class,beginDate,endDate,normal,late,vacant,absent,100-mark);
+
+/*修改对应的班级表的sum_evaluation*/
+update t_class_1412 set  sum_evaluation = sum_evaluation - mark where cno = class;
+end class_kaoqin;
+
+
+//测试正常
+execute class_kaoqin(sysdate-370,sysdate,'2');
+
+
+
+----------------------------实验三--------------------------------
+create table t_stud1_1412(
+SNO varchar2(10), 
+SNAME varchar2(10), 
+SEX varchar2(2),
+TEL varchar2(11),
+E_MAIL varchar2(50) ,
+CNO varchar2(2), 
+birthday date,  
+constraint c_stud0_1412 check (SEX in('男','女','其他')),
+constraint c_stud00_1412 check (E_MAIL like '%@%')
+);
+
+
+create table t_stud2_1412(
+SNO varchar2(10) primary key, 
+SNAME varchar2(10), 
+SEX varchar2(2),
+TEL varchar2(11),
+E_MAIL varchar2(50) ,
+CNO varchar2(2), 
+birthday date,  
+constraint c_stud002_1412 check (SEX in('男','女','其他')),
+constraint c_stud02_1412 check (E_MAIL like '%@%')
+);
+
+create table t_name_1412(
+sname varchar2(10)
+);
+
+select segment_name,sum(bytes)/1024||'kb' from user_extents group by segment_name having segment_name='T_NAME_1412';
+
+select segment_name,sum(bytes)/1024||'kb' from user_extents group by segment_name having segment_name='T_STUD1_1412';
+
+
+create or replace view fst as select distinct substr(sname,1,1)a from t_name_1412 where rownum < 1000;
+create or replace view snd as select distinct substr(sname,2,1)b from t_name_1412 where rownum < 2000;
+create or replace view trd as select distinct substr(sname,3,1)c from t_name_1412 where rownum < 1000;
+create or replace view v_name as select (a||b||c) sname from fst,snd,trd;
+
+
+
+Create or replace procedure p_student2
+ as
+ a number(2);
+ b number(2);
+ c number(2);
+ d number(2);
+ name varchar2(10);
+ cursor c_name is select sname from v_name;
+ BEGIN
+ open c_name;
+ for a in 0..99 loop
+   for b in 0..99 loop
+   if b<10 then
+   for c in 1..36 loop
+   if c<10 then
+    for d in 1..36 loop
+     if d<10 then
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into t_stud1_1412 values(to_char(a)||'0'||to_char(b)||'140'||to_char(c)||'0'||to_char(d),name,
+     '女',
+     '101'||'0'||to_char(b)||'140'||to_char(c)||'0'||to_char(d),
+     '1090'||to_char(b)||'140'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+           else           --abc小于10，d大于等于10
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into t_stud1_1412 values(to_char(a)||'0'||to_char(b)||'140'||to_char(c)||to_char(d),
+     name,
+     '女',
+     '101'||'0'||to_char(b)||'140'||to_char(c)||to_char(d),
+     '101'||'0'||to_char(b)||'140'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+     end if;
+       end loop;
+       else
+       for d in 1..36 loop
+     if d<10 then   --abcd都小于10
+      fetch c_name into name;
+      EXIT WHEN c_name%NOTFOUND;
+      insert into t_stud1_1412 values(to_char(a)||'0'||to_char(b)||'14'||to_char(c)||'0'||to_char(d),name,
+      '女',
+      '101'||'0'||to_char(b)||'14'||to_char(c)||'0'||to_char(d),
+      '101'||'0'||to_char(b)||'14'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+           else           --abc小于10，d大于等于10
+      fetch c_name into name;
+      EXIT WHEN c_name%NOTFOUND;
+      insert into t_stud1_1412 values(to_char(a)||'0'||to_char(b)||'14'||to_char(c)||to_char(d),
+      name,
+      '女',
+      '101'||'0'||to_char(b)||'14'||to_char(c)||to_char(d),
+      '101'||'0'||to_char(b)||'14'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+      end if;
+        end loop;
+       end if;
+       end loop;
+  
+     else
+       for c in 1..36 loop
+       if c<10 then
+        for d in 1..36 loop
+     if d<10 then
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into t_stud1_1412 values(to_char(a)||to_char(b)||'140'||to_char(c)||'0'||to_char(d),name,
+     '女',
+     '101'||to_char(b)||'140'||to_char(c)||'0'||to_char(d),
+     '101'||to_char(b)||'140'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+           else           --abc小于10，d大于等于10
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into t_stud1_1412 values(to_char(a)||to_char(b)||'140'||to_char(c)||to_char(d),
+     name,
+     '女',
+     '101'||to_char(b)||'140'||to_char(c)||to_char(d),
+     '101'||to_char(b)||'140'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+      end if;
+        end loop;
+      else
+      for d in 1..36 loop
+   if d<10 then   --abcd都小于10
+   fetch c_name into name;
+   EXIT WHEN c_name%NOTFOUND;
+  insert into t_stud1_1412 values(to_char(a)||to_char(b)||'14'||to_char(c)||'0'||to_char(d),name,
+   '女',
+   '101'||to_char(b)||'14'||to_char(c)||'0'||to_char(d),
+   '101'||to_char(b)||'14'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+          else           --abc小于10，d大于等于10
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into t_stud1_1412 values(to_char(a)||to_char(b)||'14'||to_char(c)||to_char(d),
+     name,
+     '女',
+     '101'||to_char(b)||'14'||to_char(c)||to_char(d),
+     '101'||to_char(b)||'14'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+      end if;
+    end loop;
+   end if;
+   end loop;
+
+
+  end if;
+  end loop;
+end loop;
+close c_name;
+END;
+
+
+execute p_student2;
+
+select count(*) from t_stud1_1412;
+
+----------------------------index----------------------------
+create index index_sname on t_stud1_1412(sname);
+create  bitmap index index_sex on t_stud1_1412(sex);
+
+create table t_stud5_1412(sno)
+partition by range (sno)
+(partition part_00 values less than ('1'),
+partition part_01 values less than ('2'),
+partition part_02 values less than ('3'),
+partition part_03 values less than ('4'),
+partition part_04 values less than ('5'),
+partition part_05 values less than ('6'),
+partition part_06 values less than ('7'),
+partition part_07 values less than ('8'),
+partition part_08 values less than ('9'),
+partition part_09 values less than (maxvalue)
+) as select sno from t_stud1_1412;
+
+
+exp u_zpx_1412/zpx file='C:\Users\Administrator\Desktop\oracle\t_stud1_1412.dmp' full=y
+
+imp u_zpx_1412/zpx file=C:\Users\Administrator\Desktop\oracle\t_stud1_1412.dmp full=y
+
+
+
+
+-------------------------实验四--------------------------------
+spool C:\Users\Administrator\Desktop\oracle\test.txt;
+select 'select * from '||tname||' where rownum<=5;' from publicsyn where tname like 'DBA_%';    
+spool off;
+@C:\Users\Administrator\Desktop\oracle\test.txt;
+
+
+select trigger_name from user_triggers;
+spool C:\Users\Administrator\Desktop\oracle\test1.txt;
+select 'alter trigger '||trigger_name||' disable;' from user_triggers;
+spool off;
+@C:\Users\Administrator\Desktop\oracle\test1.txt;
+
+select trigger_name from user_triggers;
+spool C:\Users\Administrator\Desktop\oracle\test2.txt;
+select 'alter trigger '||trigger_name||' enable;' from user_triggers;
+spool off;
+@C:\Users\Administrator\Desktop\oracle\test2.txt;
+
+-----------------在新建txt中运行-------------
+conn u_zpx_1412/
+spool C:\Users\Administrator\Desktop\oracle\four.txt;
+select 'select * from ' ||table_name || ' where rownum<=5;' from user_tables;
+spool off;
+start C:\Users\Administrator\Desktop\oracle\four.txt;
+
+--------------------------实验五----------------------------
+
+create tablespace tablespace_1412
+logging
+datafile 'F:\tabspace_1412_temp.dbf'
+size 3G
+autoextend on
+next 50m maxsize 20480m
+extent management local;
+
+
+create table stud_attend 
+(
+sno varchar2(10) primary key,
+beginDate date,
+endDate date,
+normal number,
+late number,
+absent number,
+vacant number,
+mark number
+) tablespace tablespace_1412;
+
+
+create table class_attend
+(
+cno varchar2(10) primary key,
+beginDate date,
+endDate date,
+normal number,
+late number,
+absent number,
+vacant number,
+mark number
+) tablespace tablespace_1412;
+
+
+create table stud_1412(
+SNO varchar2(10), 
+SNAME varchar2(10), 
+SEX varchar2(2),
+TEL varchar2(11),
+E_MAIL varchar2(50) ,
+CNO varchar2(2), 
+birthday date,  
+constraint c_stud_1_1412 check (SEX in('男','女','其他')),
+constraint c_stud_2_1412 check (E_MAIL like '%@%')
+) tablespace tablespace_1412;
+
+
+
+Create or replace procedure p_student4
+ as
+ a number(2);
+ b number(2);
+ c number(2);
+ d number(2);
+ name varchar2(10);
+ cursor c_name is select sname from u_zpx_1412.v_name;
+ BEGIN
+ open c_name;
+ for a in 1..99 loop
+  if a<10 then
+   for b in 1..99 loop
+   if b<10 then
+   for c in 1..36 loop
+   if c<10 then
+    for d in 1..36 loop
+     if d<10 then
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values('0'||to_char(a)||'0'||to_char(b)||'140'||to_char(c)||'0'||to_char(d),name,
+     '男',
+     '101'||'0'||to_char(b)||'140'||to_char(c)||'0'||to_char(d),
+     '1090'||to_char(b)||'140'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+           else           --abc小于10，d大于等于10
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values('0'||to_char(a)||'0'||to_char(b)||'140'||to_char(c)||to_char(d),
+     name,
+     '男',
+     '101'||'0'||to_char(b)||'140'||to_char(c)||to_char(d),
+     '101'||'0'||to_char(b)||'140'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+     end if;
+       end loop;
+       else
+       for d in 1..36 loop
+     if d<10 then   --abcd都小于10
+      fetch c_name into name;
+      EXIT WHEN c_name%NOTFOUND;
+      insert into stud_1412 values('0'||to_char(a)||'0'||to_char(b)||'14'||to_char(c)||'0'||to_char(d),name,
+      '男',
+      '101'||'0'||to_char(b)||'14'||to_char(c)||'0'||to_char(d),
+      '101'||'0'||to_char(b)||'14'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+           else           --abc小于10，d大于等于10
+      fetch c_name into name;
+      EXIT WHEN c_name%NOTFOUND;
+      insert into stud_1412 values('0'||to_char(a)||'0'||to_char(b)||'14'||to_char(c)||to_char(d),
+      name,
+      '男',
+      '101'||'0'||to_char(b)||'14'||to_char(c)||to_char(d),
+      '101'||'0'||to_char(b)||'14'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+      end if;
+        end loop;
+       end if;
+       end loop;
+  
+     else
+       for c in 1..36 loop
+       if c<10 then
+        for d in 1..36 loop
+     if d<10 then
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values('0'||to_char(a)||to_char(b)||'140'||to_char(c)||'0'||to_char(d),name,
+     '男',
+     '101'||to_char(b)||'140'||to_char(c)||'0'||to_char(d),
+     '101'||to_char(b)||'140'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+           else           --abc小于10，d大于等于10
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values('0'||to_char(a)||to_char(b)||'140'||to_char(c)||to_char(d),
+     name,
+     '男',
+     '101'||to_char(b)||'140'||to_char(c)||to_char(d),
+     '101'||to_char(b)||'140'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+      end if;
+        end loop;
+      else
+      for d in 1..36 loop
+   if d<10 then   --abcd都小于10
+   fetch c_name into name;
+   EXIT WHEN c_name%NOTFOUND;
+  insert into stud_1412 values('0'||to_char(a)||to_char(b)||'14'||to_char(c)||'0'||to_char(d),name,
+   '男',
+   '101'||to_char(b)||'14'||to_char(c)||'0'||to_char(d),
+   '101'||to_char(b)||'14'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+          else           --abc小于10，d大于等于10
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values('0'||to_char(a)||to_char(b)||'14'||to_char(c)||to_char(d),
+     name,
+     '男',
+     '101'||to_char(b)||'14'||to_char(c)||to_char(d),
+     '101'||to_char(b)||'14'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+      end if;
+    end loop;
+   end if;
+   end loop;
+
+
+  end if;
+  end loop;
+
+  else 
+   for b in 1..99 loop
+   if b<10 then
+   for c in 1..36 loop
+   if c<10 then
+    for d in 1..36 loop
+     if d<10 then
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values(to_char(a)||'0'||to_char(b)||'140'||to_char(c)||'0'||to_char(d),name,
+     '女',
+     '101'||'0'||to_char(b)||'140'||to_char(c)||'0'||to_char(d),
+     '1090'||to_char(b)||'140'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+           else           --abc小于10，d大于等于10
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values(to_char(a)||'0'||to_char(b)||'140'||to_char(c)||to_char(d),
+     name,
+     '女',
+     '101'||'0'||to_char(b)||'140'||to_char(c)||to_char(d),
+     '101'||'0'||to_char(b)||'140'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+     end if;
+       end loop;
+       else
+       for d in 1..36 loop
+     if d<10 then   --abcd都小于10
+      fetch c_name into name;
+      EXIT WHEN c_name%NOTFOUND;
+      insert into stud_1412 values(to_char(a)||'0'||to_char(b)||'14'||to_char(c)||'0'||to_char(d),name,
+      '女',
+      '101'||'0'||to_char(b)||'14'||to_char(c)||'0'||to_char(d),
+      '101'||'0'||to_char(b)||'14'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+           else           --abc小于10，d大于等于10
+      fetch c_name into name;
+      EXIT WHEN c_name%NOTFOUND;
+      insert into stud_1412 values(to_char(a)||'0'||to_char(b)||'14'||to_char(c)||to_char(d),
+      name,
+      '女',
+      '101'||'0'||to_char(b)||'14'||to_char(c)||to_char(d),
+      '101'||'0'||to_char(b)||'14'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+      end if;
+        end loop;
+       end if;
+       end loop;
+  
+     else
+       for c in 1..36 loop
+       if c<10 then
+        for d in 1..36 loop
+     if d<10 then
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values(to_char(a)||to_char(b)||'140'||to_char(c)||'0'||to_char(d),name,
+     '女',
+     '101'||to_char(b)||'140'||to_char(c)||'0'||to_char(d),
+     '101'||to_char(b)||'140'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+           else           --abc小于10，d大于等于10
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values(to_char(a)||to_char(b)||'140'||to_char(c)||to_char(d),
+     name,
+     '女',
+     '101'||to_char(b)||'140'||to_char(c)||to_char(d),
+     '101'||to_char(b)||'140'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+      end if;
+        end loop;
+      else
+      for d in 1..36 loop
+   if d<10 then   --abcd都小于10
+   fetch c_name into name;
+   EXIT WHEN c_name%NOTFOUND;
+  insert into stud_1412 values(to_char(a)||to_char(b)||'14'||to_char(c)||'0'||to_char(d),name,
+   '女',
+   '101'||to_char(b)||'14'||to_char(c)||'0'||to_char(d),
+   '101'||to_char(b)||'14'||to_char(c)||'0'||to_char(d)||'@qq.com','2',sysdate-1);
+          else           --abc小于10，d大于等于10
+     fetch c_name into name;
+     EXIT WHEN c_name%NOTFOUND;
+     insert into stud_1412 values(to_char(a)||to_char(b)||'14'||to_char(c)||to_char(d),
+     name,
+     '女',
+     '101'||to_char(b)||'14'||to_char(c)||to_char(d),
+     '101'||to_char(b)||'14'||to_char(c)||to_char(d)||'@qq.com','3',sysdate-2);
+      end if;
+    end loop;
+   end if;
+   end loop;
+
+
+  end if;
+  end loop;
+end if;
+end loop;
+close c_name;
+END;
+
+
+
+exp system/zpx159114 file='F:\quanku.dmp' full=y;
+imp system/zpx159114 file='F:\quanku.dmp' full=y ignore=y;
+
+
+alter tablespace tablespace_1412 read only;
+
+exp transport_tablespace=y tablespaces=tablespace_1412 file=F:\tablespace_1412.dmp;
+
+imp system/zpx159114 file='F:\tablespace_1412.dmp' full=y ignore=y;
